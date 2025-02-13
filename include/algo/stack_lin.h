@@ -138,6 +138,49 @@ bool is_linearizable(history_t<value_type>& hist, const value_type& emptyVal) {
   return true;
 }
 
+template <typename value_type>
+bool is_linearizable_x(history_t<value_type>& hist,
+                       const value_type& emptyVal) {
+  if (!extend_dist_history<value_type, add_methods, remove_methods>(hist,
+                                                                    emptyVal))
+    return false;
+
+  events_t<value_type> events{get_events(hist)};
+  if (!tune_events<value_type, add_methods, remove_methods>(events, emptyVal) ||
+      !verify_empty<value_type, add_methods, remove_methods>(events, emptyVal))
+    return false;
+
+  remove_empty(hist, events, emptyVal);
+  remove_concurrent(hist, events);
+
+  interval_tree ops;
+  time_type maxTime =
+      std::get<0>(*std::ranges::max_element(events.begin(), events.end()));
+  std::vector<value_type> startTimeToVal(maxTime + 1);
+  stack_perm_segtree<value_type> sst{hist, static_cast<size_t>(maxTime)};
+
+  for (const auto& o : hist) {
+    ops.insert({static_cast<int>(o.startTime), static_cast<int>(o.endTime)});
+    startTimeToVal[o.startTime] = o.value;
+  }
+
+  std::unordered_set<value_type> pending;
+  while (!ops.empty()) {
+    auto [pos, optVal] = sst.get_permissive();
+    if (pos == -1) return false;
+
+    if (optVal) continue;
+
+    for (const interval& itr : ops.query(pos)) {
+      ops.remove(itr);
+      value_type val = startTimeToVal[itr.start];
+      if (!pending.insert(val).second) sst.remove_subhistory(val);
+    }
+  }
+
+  return true;
+}
+
 };  // namespace stack
 
 }  // namespace fastlin

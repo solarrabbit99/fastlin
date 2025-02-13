@@ -22,6 +22,10 @@ struct segment_tree {
     return {tree[1].min_value, tree[1].min_pos};
   }
 
+  std::pair<int, int> query_min_range(int l, int r) {
+    return query_min_range(1, 0, size - 1, l, r);
+  }
+
   int query_val(int pos) { return query_val(1, 0, size - 1, pos); }
 
  private:
@@ -83,6 +87,17 @@ struct segment_tree {
     return ((pos <= tm) ? query_val(v * 2, tl, tm, pos)
                         : query_val(v * 2 + 1, tm + 1, tr, pos)) +
            tree[v].weight;
+  }
+
+  std::pair<int, int> query_min_range(int v, int tl, int tr, int l, int r) {
+    if (l > r) return {std::numeric_limits<int>::max(), -1};
+    if (l == tl && r == tr) return {tree[v].min_value, tree[v].min_pos};
+    propagate(v);
+    int tm = (tl + tr) / 2;
+    auto left_res = query_min_range(v * 2, tl, tm, l, std::min(r, tm));
+    auto right_res =
+        query_min_range(v * 2 + 1, tm + 1, tr, std::max(l, tm + 1), r);
+    return (left_res.first <= right_res.first) ? left_res : right_res;
   }
 
   // root at `1`, left child at `2*par`, right child at `2*par+1`

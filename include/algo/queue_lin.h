@@ -21,7 +21,7 @@ inline std::unordered_set<value_type> pendingVals;
 template <typename value_type>
 inline std::unordered_set<value_type> ignoreVals;
 template <typename value_type>
-inline std::unordered_map<value_type, size_t> runningFront;
+inline std::vector<value_type> delayedVals;
 template <typename value_type>
 std::unordered_map<value_type, size_t> cntByVal;
 
@@ -33,29 +33,18 @@ void upgrade_val(const value_type& val) {
     pendingVals<value_type>.insert(val);
 }
 
-template <typename value_type>
-bool limit_front(const value_type& val) {
-  return runningFront<value_type>[val] + 1 == cntByVal<value_type>[val];
-}
-
-template <typename value_type>
-void consume_front(const value_type& val) {
-  ++runningFront<value_type>[val];
-  if (limit_front(val)) upgrade_val(val);
-}
-
-template <typename value_type, typename event_iter>
-bool reverse_scan_enq(event_iter& start, const event_iter& end) {
+template <typename value_type, typename event_iter, Method method_arg>
+bool scan(event_iter& start, const event_iter& end) {
   event_iter temp = start;
   while (start != end) {
     const auto& [_, isInv, optr] = *start;
     const value_type& val = optr->value;
 
-    if (ignoreVals<value_type>.count(val) || optr->method != Method::ENQ) {
+    if (ignoreVals<value_type>.count(val) || optr->method != method_arg) {
       ++start;
       continue;
     }
-    if (isInv) break;
+    if (!isInv) break;
 
     upgrade_val(val);
     ++start;
@@ -64,8 +53,8 @@ bool reverse_scan_enq(event_iter& start, const event_iter& end) {
 }
 
 template <typename value_type, typename event_iter>
-bool reverse_scan_front(event_iter& start, const event_iter& end,
-                        std::optional<value_type>& last) {
+bool scan_front(event_iter& start, const event_iter& end,
+                std::optional<value_type>& last) {
   event_iter temp = start;
   while (start != end) {
     const auto& [_, isInv, optr] = *start;
@@ -76,13 +65,25 @@ bool reverse_scan_front(event_iter& start, const event_iter& end,
       continue;
     }
 
-    if (ignoreVals<value_type>.count(*last)) last.reset();
+    if (last && ignoreVals<value_type>.count(*last)) last.reset();
+
+    if (!last) {
+      for (value_type& val : delayedVals<value_type>) upgrade_val(val);
+      delayedVals<value_type>.clear();
+    }
 
     if (isInv) {
+      if (optr->method == Method::DEQ) {
+        if (last && last != val)
+          delayedVals<value_type>.push_back(val);
+        else
+          upgrade_val(val);
+      }
+    } else {
       if (!last) last = val;
-      if (last != val || limit_front(val)) break;
-    } else
-      consume_front(val);
+      // no two existing values can respond and last must wait for confirmation
+      if (last != val || optr->method == Method::DEQ) break;
+    }
 
     ++start;
     continue;
@@ -112,16 +113,45 @@ bool is_linearizable(history_t<value_type>& hist, const value_type& emptyVal) {
   std::optional<value_type> lastFront;
   pendingVals<value_type>.clear();
   ignoreVals<value_type>.clear();
-  runningFront<value_type>.clear();
-  auto enqStart = events.rbegin();
-  auto frontStart = events.rbegin();
-  auto end = events.rend();
+  delayedVals<value_type>.clear();
+  auto enqStart = events.begin();
+  auto frontStart = events.begin();
+  auto end = events.end();
 
-  while (reverse_scan_enq<value_type, decltype(enqStart)>(enqStart, end) ||
-         reverse_scan_front<value_type, decltype(frontStart)>(frontStart, end,
-                                                              lastFront));
+  while (
+      scan<value_type, decltype(enqStart), Method::ENQ>(enqStart, end) ||
+      scan_front<value_type, decltype(frontStart)>(frontStart, end, lastFront));
 
   return enqStart == end && frontStart == end;
+}
+
+template <typename value_type>
+bool is_linearizable_x(history_t<value_type>& hist,
+                       const value_type& emptyVal) {
+  if (!extend_dist_history<value_type, add_methods, remove_methods>(hist,
+                                                                    emptyVal))
+    return false;
+
+  events_t<value_type> events{get_events(hist)};
+  if (!tune_events<value_type, add_methods, remove_methods>(events, emptyVal) ||
+      !verify_empty<value_type, add_methods, remove_methods>(events, emptyVal))
+    return false;
+
+  remove_empty(hist, events, emptyVal);
+
+  std::sort(events.begin(), events.end());
+
+  // initializations
+  pendingVals<value_type>.clear();
+  ignoreVals<value_type>.clear();
+  auto enqStart = events.begin();
+  auto deqStart = events.begin();
+  const auto end = events.end();
+
+  while (scan<value_type, decltype(enqStart), Method::ENQ>(enqStart, end) ||
+         scan<value_type, decltype(deqStart), Method::DEQ>(deqStart, end));
+
+  return enqStart == end && deqStart == end;
 }
 
 };  // namespace queue

@@ -1,10 +1,8 @@
 #pragma once
 
-#include <map>
-#include <set>
-#include <unordered_set>
-#include <vector>
+#include <algorithm>
 
+#include "commons/segment_tree.h"
 #include "fastlinutils.h"
 
 namespace fastlin {
@@ -27,39 +25,67 @@ bool is_linearizable(history_t<value_type>& hist, const value_type& emptyVal) {
 
   remove_empty(hist, events, emptyVal);
 
-  std::sort(events.begin(), events.end());
+  time_type maxTime =
+      std::get<0>(*std::ranges::max_element(events.begin(), events.end()));
+  segment_tree segTree{maxTime};
+  std::sort(hist.begin(), hist.end(), [](const auto& a, const auto& b) {
+    return a.value > b.value || (a.value == b.value && a.id < b.id);
+  });
 
-  std::map<value_type, std::unordered_set<id_type>> runningOp;
-  std::set<value_type> critVal;
-  std::unordered_set<value_type> ignoreVal;
-
-  for (const auto& [_, isInv, optr] : events) {
-    const value_type& val = optr->value;
-
-    if (isInv) {
-      if (optr->method != Method::INSERT) runningOp[val].emplace(optr->id);
-
-      if (optr->method == Method::POLL) {
-        critVal.erase(val);
-        ignoreVal.insert(val);
-      }
+  value_type currVal = emptyVal;
+  time_type minRes, maxInv;
+  for (const auto& op : hist) {
+    if (currVal != op.value) {
+      if (currVal != emptyVal && minRes < maxInv)
+        segTree.update_range(minRes, maxInv - 1, 1);
+      currVal = op.value;
+      minRes = op.endTime;
+      maxInv = op.startTime;
     } else {
-      if (runningOp[val].count(optr->id)) return false;
-
-      if (optr->method == Method::INSERT && !ignoreVal.count(val))
-        critVal.insert(val);
+      minRes = std::min(minRes, op.endTime);
+      maxInv = std::max(maxInv, op.startTime);
     }
 
-    if (critVal.empty())
-      runningOp.clear();
+    if (op.method != Method::INSERT &&
+        segTree.query_min_range(op.startTime, op.endTime - 1).first > 0)
+      return false;
+  }
+
+  return true;
+}
+
+template <typename value_type>
+bool is_linearizable_x(history_t<value_type>& hist,
+                       const value_type& emptyVal) {
+  if (!extend_dist_history<value_type, add_methods, remove_methods>(hist,
+                                                                    emptyVal))
+    return false;
+
+  events_t<value_type> events{get_events(hist)};
+  if (!tune_events<value_type, add_methods, remove_methods>(events, emptyVal) ||
+      !verify_empty<value_type, add_methods, remove_methods>(events, emptyVal))
+    return false;
+
+  remove_empty(hist, events, emptyVal);
+
+  time_type maxTime =
+      std::get<0>(*std::ranges::max_element(events.begin(), events.end()));
+  segment_tree segTree{maxTime};
+  std::sort(hist.begin(), hist.end(), [](const auto& a, const auto& b) {
+    return a.value > b.value ||
+           // insert to be processed before poll
+           (a.value == b.value && a.method == Method::INSERT);
+  });
+
+  time_type insertRes;
+  for (const auto& op : hist) {
+    if (op.method == Method::INSERT)
+      insertRes = op.endTime;
     else {
-      const value_type& maxPriorityVal = *critVal.rbegin();
-      auto runningIter = runningOp.rbegin();
-      while (runningIter != runningOp.rend()) {
-        if (runningIter->first < maxPriorityVal) break;
-        std::advance(runningIter, 1);
-        runningOp.erase(runningIter.base());
-      }
+      if (segTree.query_min_range(op.startTime, op.endTime - 1).first > 0)
+        return false;
+      if (insertRes < op.startTime)
+        segTree.update_range(insertRes, op.startTime - 1, 1);
     }
   }
 

@@ -85,14 +85,15 @@ bool tune_events(events_t<value_type>& events, const value_type& emptyVal) {
       if (add_group::contains(o->method)) {
         addongoing.emplace(value, o);
         for (oper_ptr op : otherongoing[value]) op->startTime = ++time;
-        if (rmongoing.count(value)) rmongoing.at(value)->startTime = ++time;
+        if (auto iter = rmongoing.find(value); iter != rmongoing.end())
+          iter->second->startTime = ++time;
       } else if (remove_group::contains(o->method)) {
         rmongoing.emplace(value, o);
       } else {
         otherongoing[value].push(o);
-        if (rmongoing.count(value)) {
-          if (!rmongoing.at(value)) return false;
-          rmongoing.at(value)->startTime = ++time;
+        if (auto iter = rmongoing.find(value); iter != rmongoing.end()) {
+          if (!iter->second) return false;
+          iter->second->startTime = ++time;
         }
       }
     } else {

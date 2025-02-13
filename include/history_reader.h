@@ -8,11 +8,11 @@
 namespace fastlin {
 
 template <typename value_type>
-class history_reader {
+struct history_reader {
  public:
   history_reader(const std::string& path) : path(path) {}
 
-  history_t<value_type> getHist() {
+  history_t<value_type> get_hist() {
     std::ifstream f(path);
     std::string line;
     history_t<value_type> hist;
@@ -33,7 +33,7 @@ class history_reader {
     return hist;
   }
 
-  std::string getHistTypeStr() {
+  std::string get_type_s() {
     std::ifstream f(path);
     std::string line;
     if (!std::getline(f, line) || line[0] != '#') return "";

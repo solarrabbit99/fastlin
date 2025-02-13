@@ -34,6 +34,7 @@ pop 1 7 8
 ### Options
 
 - `-t`: report time taken in seconds
+- `-x`: exclude peek operations (chooses faster algo if possible)
 
 ### Output
 

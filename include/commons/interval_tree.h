@@ -160,10 +160,10 @@ struct interval_tree : private memory_allocator<interval_tree_node> {
              std::vector<interval>& result) {
     if (!node) return;
 
-    if (node->intvl.start <= point && point <= node->intvl.end)
+    if (node->intvl.start <= point && point < node->intvl.end)
       result.push_back(node->intvl);
 
-    if (node->left && node->left->maxEnd >= point)
+    if (node->left && node->left->maxEnd > point)
       query(node->left, point, result);
 
     if (node->right && node->intvl.start <= point)
