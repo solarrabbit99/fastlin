@@ -5,8 +5,6 @@
 #include <unordered_map>
 #include <vector>
 
-#include "commons/interval_tree.h"
-#include "commons/segment_tree.h"
 #include "fastlinutils.h"
 
 namespace fastlin {

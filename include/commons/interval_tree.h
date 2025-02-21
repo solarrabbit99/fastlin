@@ -30,6 +30,9 @@ struct interval_tree : private memory_allocator<interval_tree_node> {
  public:
   interval_tree() : root(nullptr) {}
 
+  interval_tree(size_t size)
+      : memory_allocator<interval_tree_node>(size), root(nullptr) {}
+
   // Newly inserted interval must have unique `start` and `end`
   void insert(interval i) { root = insert(root, i); }
 

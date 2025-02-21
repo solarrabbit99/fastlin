@@ -19,23 +19,34 @@ using remove_methods = method_group<Method::POP>;
 template <typename value_type>
 struct stack_perm_segtree {
   typedef int pos_t;
+  typedef std::pair<int, value_type> node_value_t;
+
+  struct stack_segment_tree_node_zero {
+    static constexpr node_value_t value{{}, {}};
+  };
+
+  struct stack_segment_tree_node_updater {
+    inline void operator()(node_value_t& a, const node_value_t& b) {
+      a.first += b.first;
+      a.second += b.second;
+    }
+  };
 
   stack_perm_segtree(const history_t<value_type>& hist, size_t n)
-      : n{n}, segTree1{2 * n - 1}, segTree2{2 * n - 1} {
+      : n{n}, segTree{2 * n - 1} {
     for (const operation_t<value_type>& o : hist) {
-      if (o.method == POP) critIntervals[o.value].end = o.startTime;
-      if (o.method == PUSH) critIntervals[o.value].start = o.endTime;
+      if (o.method == PUSH)
+        critIntervals[o.value].start = o.endTime;
+      else if (o.method == POP)
+        critIntervals[o.value].end = o.startTime;
     }
-    for (const auto& [value, intvl] : critIntervals) {
-      segTree1.update_range(intvl.start, intvl.end - 1, 1);
-      segTree2.update_range(intvl.start, intvl.end - 1, value);
-    }
+    for (const auto& [value, intvl] : critIntervals)
+      segTree.update_range(intvl.start, intvl.end - 1, {1, value});
   }
 
   void remove_subhistory(const value_type& v) {
     auto& [b, e] = critIntervals[v];
-    segTree1.update_range(b, e - 1, -1);
-    segTree2.update_range(b, e - 1, -v);
+    segTree.update_range(b, e - 1, {-1, -v});
     for (const time_type& t : waitingReturns[v]) pendingReturns.push_back(t);
   }
 
@@ -46,11 +57,11 @@ struct stack_perm_segtree {
       return {t, std::nullopt};
     }
 
-    auto [layers, pos] = segTree1.query_min();
-    segTree1.update_range(pos, pos, 2 * n);
-    if (layers == 0) return {pos, std::nullopt};
-    if (layers == 1) {
-      value_type val = segTree2.query_val(pos);
+    auto [layers, pos] = segTree.query_min();
+    segTree.update_range(pos, pos, {2 * n, {}});
+    if (layers.first == 0) return {pos, std::nullopt};
+    if (layers.first == 1) {
+      value_type& val = layers.second;
       waitingReturns[val].push_back(pos);
       return {pos, val};
     }
@@ -60,8 +71,9 @@ struct stack_perm_segtree {
  private:
   std::unordered_map<value_type, std::vector<time_type>> waitingReturns;
   std::vector<time_type> pendingReturns;
-  segment_tree segTree1;
-  segment_tree segTree2;
+  segment_tree<node_value_t, stack_segment_tree_node_zero,
+               stack_segment_tree_node_updater>
+      segTree;
   size_t n;
   std::unordered_map<value_type, interval> critIntervals;
 };
@@ -107,7 +119,7 @@ bool is_linearizable(history_t<value_type>& hist, const value_type& emptyVal) {
   remove_empty(hist, events, emptyVal);
   remove_concurrent(hist, events);
 
-  interval_tree ops;
+  interval_tree ops{hist.size()};
   std::unordered_map<value_type, interval_tree> opByVal;
   time_type maxTime =
       std::get<0>(*std::ranges::max_element(events.begin(), events.end()));
@@ -153,7 +165,7 @@ bool is_linearizable_x(history_t<value_type>& hist,
   remove_empty(hist, events, emptyVal);
   remove_concurrent(hist, events);
 
-  interval_tree ops;
+  interval_tree ops{hist.size()};
   time_type maxTime =
       std::get<0>(*std::ranges::max_element(events.begin(), events.end()));
   std::vector<value_type> startTimeToVal(maxTime + 1);

@@ -27,7 +27,7 @@ bool is_linearizable(history_t<value_type>& hist, const value_type& emptyVal) {
 
   time_type maxTime =
       std::get<0>(*std::ranges::max_element(events.begin(), events.end()));
-  segment_tree segTree{maxTime};
+  segment_tree<value_type> segTree{maxTime};
   std::sort(hist.begin(), hist.end(), [](const auto& a, const auto& b) {
     return a.value > b.value || (a.value == b.value && a.id < b.id);
   });
@@ -70,7 +70,7 @@ bool is_linearizable_x(history_t<value_type>& hist,
 
   time_type maxTime =
       std::get<0>(*std::ranges::max_element(events.begin(), events.end()));
-  segment_tree segTree{maxTime};
+  segment_tree<value_type> segTree{maxTime};
   std::sort(hist.begin(), hist.end(), [](const auto& a, const auto& b) {
     return a.value > b.value ||
            // insert to be processed before poll

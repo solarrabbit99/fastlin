@@ -67,12 +67,19 @@ bool tune_events(events_t<value_type>& events, const value_type& emptyVal) {
   std::sort(events.begin(), events.end());
 
   using oper_ptr = operation_t<value_type>*;
-  std::unordered_map<value_type, oper_ptr> addongoing, rmongoing;
-  std::unordered_map<value_type, queue_set<oper_ptr>> otherongoing;
+  struct value_event_data {
+    oper_ptr add_op = nullptr;
+    oper_ptr remove_op = nullptr;
+    bool add_ended = false;
+    bool remove_ended = false;
+    queue_set<oper_ptr> others;
+  };
+  std::unordered_map<value_type, value_event_data> ongoings;
 
   time_type time = MIN_TIME;
   for (const auto& [_, isInv, o] : events) {
     const value_type& value = o->value;
+    value_event_data& data = ongoings[value];
 
     if (value == emptyVal) {
       time_type& ts = isInv ? o->startTime : o->endTime;
@@ -83,41 +90,39 @@ bool tune_events(events_t<value_type>& events, const value_type& emptyVal) {
     if (isInv) {
       o->startTime = ++time;
       if (add_group::contains(o->method)) {
-        addongoing.emplace(value, o);
-        for (oper_ptr op : otherongoing[value]) op->startTime = ++time;
-        if (auto iter = rmongoing.find(value); iter != rmongoing.end())
-          iter->second->startTime = ++time;
+        data.add_op = o;
+        for (oper_ptr op : data.others) op->startTime = ++time;
+        if (data.remove_op) data.remove_op->startTime = ++time;
       } else if (remove_group::contains(o->method)) {
-        rmongoing.emplace(value, o);
+        data.remove_op = o;
       } else {
-        otherongoing[value].push(o);
-        if (auto iter = rmongoing.find(value); iter != rmongoing.end()) {
-          if (!iter->second) return false;
-          iter->second->startTime = ++time;
+        data.others.push(o);
+        if (data.remove_op) {
+          if (data.remove_ended) return false;
+          data.remove_op->startTime = ++time;
         }
       }
     } else {
       if (add_group::contains(o->method)) {
         o->endTime = ++time;
-        addongoing.at(value) = NULL;
+        data.add_ended = true;
       } else if (remove_group::contains(o->method)) {
-        if (!addongoing.count(value)) return false;
-        if (addongoing.at(value)) addongoing.at(value)->endTime = ++time;
-        queue_set<oper_ptr>& opQueue = otherongoing[value];
-        while (!opQueue.empty()) {
-          opQueue.front()->endTime = ++time;
-          opQueue.pop();
+        if (data.add_op == NULL) return false;
+        if (!data.add_ended) data.add_op->endTime = ++time;
+        while (!data.others.empty()) {
+          data.others.front()->endTime = ++time;
+          data.others.pop();
         }
-        rmongoing.at(value)->endTime = ++time;
-        rmongoing.at(value) = NULL;
+        data.remove_op->endTime = ++time;
+        data.remove_ended = true;
       } else {
-        if (!otherongoing[o->value].contains(o)) continue;
-        if (!addongoing.count(o->value)) return false;
-        if (addongoing.at(o->value)) {
-          addongoing.at(o->value)->endTime = ++time;
-          addongoing.at(o->value) = NULL;
+        if (!data.others.contains(o)) continue;
+        if (data.add_op == NULL) return false;
+        if (!data.add_ended) {
+          data.add_op->endTime = ++time;
+          data.add_ended = true;
         }
-        otherongoing[value].erase(o);
+        data.others.erase(o);
         o->endTime = ++time;
       }
     }
