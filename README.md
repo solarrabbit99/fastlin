@@ -11,7 +11,6 @@ Histories are text files that provide a **data type** as header and **operations
 - `stack`
 - `queue`
 - `priorityqueue`
-- `deque` (upcoming)
 
 **Operations** are denoted by method, value, start time, and end time in that order. Refer to examples in `testcases` directory for supported methods for a given data type.
 
@@ -28,13 +27,16 @@ pop 1 7 8
 ## Usage
 
 ```bash
--bash-4.2$ ./fastlin [-t] <history_file>
+-bash-4.2$ ./fastlin [-txvh] <history_file>
 ```
 
 ### Options
 
 - `-t`: report time taken in seconds
 - `-x`: exclude peek operations (chooses faster algo if possible)
+- `-v`: print verbose information
+- `-h`: include header
+- `--help`: show help message
 
 ### Output
 
