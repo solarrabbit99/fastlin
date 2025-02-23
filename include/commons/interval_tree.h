@@ -2,6 +2,8 @@
 
 #include <stdint.h>
 
+#include <memory>
+#include <type_traits>
 #include <vector>
 
 #include "mem_alloc.h"
@@ -24,14 +26,17 @@ struct interval_tree_node {
       : intvl(i), maxEnd(i.end), height(1), left(nullptr), right(nullptr) {}
 };
 
+template <typename T>
+concept memory_allocator_ptr =
+    std::is_same_v<std::remove_cvref_t<decltype(*std::declval<T>())>,
+                   memory_allocator<interval_tree_node>>;
+
 // interval tree efficient O(log n) insert/delete of intervals and `O(m log n)`
 // point query
-struct interval_tree : private memory_allocator<interval_tree_node> {
+template <memory_allocator_ptr ptr_t>
+struct interval_tree {
  public:
-  interval_tree() : root(nullptr) {}
-
-  interval_tree(size_t size)
-      : memory_allocator<interval_tree_node>(size), root(nullptr) {}
+  interval_tree(ptr_t ptr) : mem_alloc_ptr(ptr), root(nullptr) {}
 
   // Newly inserted interval must have unique `start` and `end`
   void insert(interval i) { root = insert(root, i); }
@@ -51,6 +56,7 @@ struct interval_tree : private memory_allocator<interval_tree_node> {
 
  private:
   interval_tree_node* root;
+  ptr_t mem_alloc_ptr;
 
   int height(interval_tree_node* n) { return n ? n->height : 0; }
 
@@ -112,7 +118,7 @@ struct interval_tree : private memory_allocator<interval_tree_node> {
   }
 
   interval_tree_node* insert(interval_tree_node* node, interval i) {
-    if (!node) return new (alloc()) interval_tree_node(i);
+    if (!node) return new (mem_alloc_ptr->alloc()) interval_tree_node(i);
 
     if (i.start < node->intvl.start)
       node->left = insert(node->left, i);
@@ -141,7 +147,7 @@ struct interval_tree : private memory_allocator<interval_tree_node> {
     } else {
       if (!node->left || !node->right) {
         interval_tree_node* temp = node->left ? node->left : node->right;
-        free(node);
+        mem_alloc_ptr->free(node);
         node = temp;
       } else {
         interval_tree_node* temp = minValueNode(node->right);

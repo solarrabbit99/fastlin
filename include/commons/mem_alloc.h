@@ -2,33 +2,19 @@
 
 #include <vector>
 
-#define MEM_ALLOC_SIZE 64
-
 namespace fastlin {
 
-// Represents non-shrinking memory_allocator for fast alloc and free
+// Represents static sized memory_allocator for fast alloc and free
 template <typename T>
 struct memory_allocator {
- protected:
-  memory_allocator() : memory_allocator(MEM_ALLOC_SIZE) {}
-
   memory_allocator(size_t size)
-      : size{size}, data{(T*)malloc(sizeof(T) * size)}, free_list{size} {
-    for (int i = 0; i < size; ++i) free_list[i] = &(data.back()[i]);
+      : data{(T*)malloc(sizeof(T) * size)}, free_list{size} {
+    for (int i = 0; i < size; ++i) free_list[i] = data + i;
   }
 
-  ~memory_allocator() {
-    for (T* block : data) std::free(block);
-  }
+  ~memory_allocator() { std::free(data); }
 
   T* alloc() {
-    [[unlikely]] if (free_list.empty()) {
-      data.push_back((T*)malloc(sizeof(T) * size));
-      free_list.resize(size);
-      for (int i = 0; i < size; ++i) free_list[i] = &(data.back()[i]);
-      size <<= 1;
-    }
-
     T* top = free_list.back();
     free_list.pop_back();
     return top;
@@ -40,9 +26,8 @@ struct memory_allocator {
   }
 
  private:
-  std::vector<T*> data;
+  T* data;
   std::vector<T*> free_list;
-  size_t size;
 };
 
 };  // namespace fastlin

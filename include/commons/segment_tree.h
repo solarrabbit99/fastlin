@@ -52,9 +52,9 @@ struct segment_tree {
   void build(int v, int tl, int tr) {
     tree[v] = {zero_allocator::value, zero_allocator::value, tl};
     if (tl != tr) {
-      int tm = (tl + tr) / 2;
-      build(v * 2, tl, tm);
-      build(v * 2 + 1, tm + 1, tr);
+      int tm = (tl + tr) >> 1;
+      build(v << 1, tl, tm);
+      build((v << 1) + 1, tm + 1, tr);
     }
   }
 
@@ -94,8 +94,8 @@ struct segment_tree {
   int query_val(int v, int tl, int tr, int pos) {
     if (tl == tr) return tree[v].weight;
     int tm = (tl + tr) >> 1;
-    return ((pos <= tm) ? query_val(v * 2, tl, tm, pos)
-                        : query_val(v * 2 + 1, tm + 1, tr, pos)) +
+    return ((pos <= tm) ? query_val(v << 1, tl, tm, pos)
+                        : query_val((v << 1) + 1, tm + 1, tr, pos)) +
            tree[v].weight;
   }
 
@@ -104,10 +104,10 @@ struct segment_tree {
     if (l > r) return {std::numeric_limits<int>::max(), -1};
     if (l == tl && r == tr) return {tree[v].min_value, tree[v].min_pos};
     propagate(v);
-    int tm = (tl + tr) / 2;
-    auto left_res = query_min_range(v * 2, tl, tm, l, std::min(r, tm));
+    int tm = (tl + tr) >> 1;
+    auto left_res = query_min_range(v << 1, tl, tm, l, std::min(r, tm));
     auto right_res =
-        query_min_range(v * 2 + 1, tm + 1, tr, std::max(l, tm + 1), r);
+        query_min_range((v << 1) + 1, tm + 1, tr, std::max(l, tm + 1), r);
     return (left_res.first <= right_res.first) ? left_res : right_res;
   }
 

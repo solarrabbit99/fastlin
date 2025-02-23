@@ -119,8 +119,10 @@ bool is_linearizable(history_t<value_type>& hist, const value_type& emptyVal) {
   remove_empty(hist, events, emptyVal);
   remove_concurrent(hist, events);
 
-  interval_tree ops{hist.size()};
-  std::unordered_map<value_type, interval_tree> opByVal;
+  auto mem_alloc =
+      std::make_shared<memory_allocator<interval_tree_node>>(hist.size() << 1);
+  interval_tree<decltype(mem_alloc)> ops{mem_alloc};
+  std::unordered_map<value_type, interval_tree<decltype(mem_alloc)>> opByVal;
   time_type maxTime =
       std::get<0>(*std::ranges::max_element(events.begin(), events.end()));
   std::vector<value_type> startTimeToVal(maxTime + 1);
@@ -130,7 +132,8 @@ bool is_linearizable(history_t<value_type>& hist, const value_type& emptyVal) {
     interval itr{static_cast<int>(o.startTime), static_cast<int>(o.endTime)};
     ops.insert(itr);
     startTimeToVal[o.startTime] = o.value;
-    opByVal[o.value].insert(itr);
+    auto [map_iter, _] = opByVal.try_emplace(o.value, mem_alloc);
+    map_iter->second.insert(itr);
   }
 
   while (!ops.empty()) {
@@ -138,12 +141,12 @@ bool is_linearizable(history_t<value_type>& hist, const value_type& emptyVal) {
     if (pos == -1) return false;
 
     std::vector<interval> overlaps =
-        optVal ? opByVal[*optVal].query(pos) : ops.query(pos);
+        optVal ? opByVal.at(*optVal).query(pos) : ops.query(pos);
     for (const interval& itr : overlaps) {
       value_type val = startTimeToVal[itr.start];
-      opByVal[val].remove(itr);
+      opByVal.at(val).remove(itr);
       ops.remove(itr);
-      if (opByVal[val].empty()) sst.remove_subhistory(val);
+      if (opByVal.at(val).empty()) sst.remove_subhistory(val);
     }
   }
 
@@ -165,7 +168,9 @@ bool is_linearizable_x(history_t<value_type>& hist,
   remove_empty(hist, events, emptyVal);
   remove_concurrent(hist, events);
 
-  interval_tree ops{hist.size()};
+  auto mem_alloc =
+      std::make_shared<memory_allocator<interval_tree_node>>(hist.size());
+  interval_tree ops{mem_alloc};
   time_type maxTime =
       std::get<0>(*std::ranges::max_element(events.begin(), events.end()));
   std::vector<value_type> startTimeToVal(maxTime + 1);
