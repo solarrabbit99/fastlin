@@ -16,6 +16,9 @@ namespace stack {
 using add_methods = method_group<Method::PUSH>;
 using remove_methods = method_group<Method::POP>;
 
+constexpr int PERM_MULTI_LAYERS = -1;
+constexpr int PERM_INF_LAYERS = -2;
+
 template <typename value_type>
 struct stack_perm_segtree {
   typedef int pos_t;
@@ -41,7 +44,8 @@ struct stack_perm_segtree {
         critIntervals[o.value].end = o.startTime;
     }
     for (const auto& [value, intvl] : critIntervals)
-      segTree.update_range(intvl.start, intvl.end - 1, {1, value});
+      if (intvl.start < intvl.end)
+        segTree.update_range(intvl.start, intvl.end - 1, {1, value});
   }
 
   void remove_subhistory(const value_type& v) {
@@ -58,14 +62,15 @@ struct stack_perm_segtree {
     }
 
     auto [layers, pos] = segTree.query_min();
-    segTree.update_range(pos, pos, {2 * n, {}});
+    segTree.update_range(pos, pos, {n << 2, {}});
     if (layers.first == 0) return {pos, std::nullopt};
     if (layers.first == 1) {
       value_type& val = layers.second;
       waitingReturns[val].push_back(pos);
       return {pos, val};
     }
-    return {-1, std::nullopt};
+    return {(layers.first <= n) ? PERM_MULTI_LAYERS : PERM_INF_LAYERS,
+            std::nullopt};
   }
 
  private:
@@ -79,33 +84,6 @@ struct stack_perm_segtree {
 };
 
 template <typename value_type>
-std::unordered_set<value_type> get_concurrent(events_t<value_type>& events) {
-  std::sort(events.begin(), events.end());
-  std::unordered_set<value_type> removableVals;
-  for (const auto& [_, isInv, optr] : events) {
-    if (isInv) {
-      // add padding to values so that min value is 1 (for segment tree use)
-      ++optr->value;
-      if (optr->method == POP) removableVals.erase(optr->value);
-    } else if (optr->method == PUSH)
-      removableVals.insert(optr->value);
-  }
-  return removableVals;
-}
-
-template <typename value_type>
-void remove_concurrent(history_t<value_type>& hist,
-                       events_t<value_type>& events) {
-  std::unordered_set<value_type> concVals = get_concurrent(events);
-  hist.erase(std::remove_if(hist.begin(), hist.end(),
-                            [&concVals](const auto& o) {
-                              return concVals.count(o.value);
-                            }),
-             hist.end());
-  events = get_events(hist);  // pointers can be invalid
-}
-
-template <typename value_type>
 bool is_linearizable(history_t<value_type>& hist, const value_type& emptyVal) {
   if (!extend_dist_history<value_type, add_methods, remove_methods>(hist,
                                                                     emptyVal))
@@ -117,7 +95,6 @@ bool is_linearizable(history_t<value_type>& hist, const value_type& emptyVal) {
     return false;
 
   remove_empty(hist, events, emptyVal);
-  remove_concurrent(hist, events);
 
   auto mem_alloc =
       std::make_shared<memory_allocator<interval_tree_node>>(hist.size() << 1);
@@ -138,7 +115,8 @@ bool is_linearizable(history_t<value_type>& hist, const value_type& emptyVal) {
 
   while (!ops.empty()) {
     auto [pos, optVal] = sst.get_permissive();
-    if (pos == -1) return false;
+    if (pos == PERM_MULTI_LAYERS) return false;
+    if (pos == PERM_INF_LAYERS) return true;
 
     std::vector<interval> overlaps =
         optVal ? opByVal.at(*optVal).query(pos) : ops.query(pos);
@@ -166,7 +144,6 @@ bool is_linearizable_x(history_t<value_type>& hist,
     return false;
 
   remove_empty(hist, events, emptyVal);
-  remove_concurrent(hist, events);
 
   auto mem_alloc =
       std::make_shared<memory_allocator<interval_tree_node>>(hist.size());
@@ -184,7 +161,8 @@ bool is_linearizable_x(history_t<value_type>& hist,
   std::unordered_set<value_type> pending;
   while (!ops.empty()) {
     auto [pos, optVal] = sst.get_permissive();
-    if (pos == -1) return false;
+    if (pos == PERM_MULTI_LAYERS) return false;
+    if (pos == PERM_INF_LAYERS) return true;
 
     if (optVal) continue;
 
