@@ -18,26 +18,25 @@ bool extend_dist_history(history_t<value_type>& hist,
                          const value_type& emptyVal) {
   time_type maxTime = MIN_TIME;
   id_type maxId = 0;
-  std::unordered_set<value_type> addvals, removevals, allvals;
+  std::unordered_map<value_type, std::pair<int, int>> hasAddRemove;
 
   for (const auto& o : hist) {
     maxId = std::max(maxId, o.id);
     if (o.value == emptyVal) continue;
 
-    allvals.insert(o.value);
-    if (add_group::contains(o.method) && !addvals.insert(o.value).second)
-      return false;
-    else if (remove_group::contains(o.method) &&
-             !removevals.insert(o.value).second)
-      return false;
+    auto [map_iter, _] = hasAddRemove.try_emplace(o.value, 0, 0);
+    auto& [hasAdd, hasRemove] = map_iter->second;
+    if (add_group::contains(o.method) && hasAdd++) return false;
+    if (remove_group::contains(o.method) && hasRemove++) return false;
 
     maxTime = std::max(maxTime, o.endTime);
   }
 
-  for (const value_type& value : allvals) {
-    if (!addvals.count(value)) return false;
-    if (!removevals.count(value))
-      hist.emplace_back(++maxId, remove_group::first, value, maxTime + 1,
+  for (const auto& [key, value] : hasAddRemove) {
+    auto& [hasAdd, hasRemove] = value;
+    if (!hasAdd) return false;
+    if (!hasRemove)
+      hist.emplace_back(++maxId, remove_group::first, key, maxTime + 1,
                         maxTime + 2);
   }
 
