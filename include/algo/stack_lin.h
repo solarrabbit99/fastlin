@@ -1,6 +1,7 @@
 #pragma once
 
 #include <algorithm>
+#include <memory>
 #include <ranges>
 #include <unordered_map>
 #include <vector>
@@ -29,14 +30,20 @@ struct stack_perm_segtree {
   };
 
   struct stack_segment_tree_node_updater {
-    inline void operator()(node_value_t& a, const node_value_t& b) {
+    inline node_value_t& operator()(node_value_t& a, const node_value_t& b) {
       a.first += b.first;
       a.second += b.second;
+      return a;
     }
   };
 
-  stack_perm_segtree(const history_t<value_type>& hist, size_t n)
-      : n{n}, segTree{2 * n - 1} {
+  typedef segment_tree<node_value_t, stack_segment_tree_node_zero,
+                       stack_segment_tree_node_updater>
+      segtree_t;
+
+  stack_perm_segtree(const history_t<value_type>& hist, size_t n) : n{n} {
+    std::vector<node_value_t> initializer(n << 1,
+                                          stack_segment_tree_node_zero::value);
     for (const operation_t<value_type>& o : hist) {
       if (o.method == PUSH)
         critIntervals[o.value].start = o.endTime;
@@ -44,13 +51,19 @@ struct stack_perm_segtree {
         critIntervals[o.value].end = o.startTime;
     }
     for (const auto& [value, intvl] : critIntervals)
-      if (intvl.start < intvl.end)
-        segTree.update_range(intvl.start, intvl.end - 1, {1, value});
+      if (intvl.start < intvl.end) {
+        initializer[intvl.start] = {1, value};
+        initializer[intvl.end] = {-1, -value};
+      }
+    node_value_t prefixSum = stack_segment_tree_node_zero::value;
+    for (node_value_t& pr : initializer)
+      pr = stack_segment_tree_node_updater()(prefixSum, pr);
+    segTree = std::make_unique<segtree_t>(initializer, (n << 1) - 1);
   }
 
   void remove_subhistory(const value_type& v) {
     auto& [b, e] = critIntervals[v];
-    segTree.update_range(b, e - 1, {-1, -v});
+    segTree->update_range(b, e - 1, {-1, -v});
     for (const time_type& t : waitingReturns[v]) pendingReturns.push_back(t);
   }
 
@@ -61,8 +74,8 @@ struct stack_perm_segtree {
       return {t, std::nullopt};
     }
 
-    auto [layers, pos] = segTree.query_min();
-    segTree.update_range(pos, pos, {n << 2, {}});
+    auto [layers, pos] = segTree->query_min();
+    segTree->update_range(pos, pos, {n << 2, {}});
     if (layers.first == 0) return {pos, std::nullopt};
     if (layers.first == 1) {
       value_type& val = layers.second;
@@ -76,9 +89,7 @@ struct stack_perm_segtree {
  private:
   std::unordered_map<value_type, std::vector<time_type>> waitingReturns;
   std::vector<time_type> pendingReturns;
-  segment_tree<node_value_t, stack_segment_tree_node_zero,
-               stack_segment_tree_node_updater>
-      segTree;
+  std::unique_ptr<segtree_t> segTree;
   size_t n;
   std::unordered_map<value_type, interval> critIntervals;
 };
@@ -94,14 +105,14 @@ bool is_linearizable(history_t<value_type>& hist, const value_type& emptyVal) {
       !verify_empty<value_type, add_methods, remove_methods>(events, emptyVal))
     return false;
 
-  remove_empty(hist, events, emptyVal);
+  time_type maxTime =
+      std::get<0>(*std::ranges::max_element(events.begin(), events.end()));
+  remove_empty(hist, emptyVal);
 
   auto mem_alloc =
       std::make_shared<memory_allocator<interval_tree_node>>(hist.size() << 1);
   interval_tree<decltype(mem_alloc)> ops{mem_alloc};
   std::unordered_map<value_type, interval_tree<decltype(mem_alloc)>> opByVal;
-  time_type maxTime =
-      std::get<0>(*std::ranges::max_element(events.begin(), events.end()));
   std::vector<value_type> startTimeToVal(maxTime + 1);
   stack_perm_segtree<value_type> sst{hist, static_cast<size_t>(maxTime)};
 
@@ -143,13 +154,13 @@ bool is_linearizable_x(history_t<value_type>& hist,
       !verify_empty<value_type, add_methods, remove_methods>(events, emptyVal))
     return false;
 
-  remove_empty(hist, events, emptyVal);
+  time_type maxTime =
+      std::get<0>(*std::ranges::max_element(events.begin(), events.end()));
+  remove_empty(hist, emptyVal);
 
   auto mem_alloc =
       std::make_shared<memory_allocator<interval_tree_node>>(hist.size());
   interval_tree ops{mem_alloc};
-  time_type maxTime =
-      std::get<0>(*std::ranges::max_element(events.begin(), events.end()));
   std::vector<value_type> startTimeToVal(maxTime + 1);
   stack_perm_segtree<value_type> sst{hist, static_cast<size_t>(maxTime)};
 

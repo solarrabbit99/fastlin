@@ -174,4 +174,12 @@ void remove_empty(history_t<value_type>& hist, events_t<value_type>& events,
   events = get_events(hist);  // pointers can be invalid
 }
 
+template <typename value_type>
+void remove_empty(history_t<value_type>& hist, const value_type& emptyVal) {
+  hist.erase(std::remove_if(
+                 hist.begin(), hist.end(),
+                 [&emptyVal](const auto& o) { return o.value == emptyVal; }),
+             hist.end());
+}
+
 }  // namespace fastlin

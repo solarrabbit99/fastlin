@@ -24,8 +24,14 @@ template <typename value_type,
           typename updater = default_segment_tree_updater<value_type>>
 struct segment_tree {
  public:
-  segment_tree(const size_t& size) : tree(size * 4), size(size) {
+  segment_tree(const size_t& size) : tree(size << 2), size(size) {
     build(1, 0, size - 1);
+  }
+
+  template <typename value_ptr>
+  segment_tree(const value_ptr& arr, size_t size)
+      : tree(size << 2), size(size) {
+    build(1, 0, size - 1, arr);
   }
 
   void update_range(int l, int r, value_type addend) {
@@ -58,11 +64,25 @@ struct segment_tree {
     }
   }
 
-  void merge(segment_tree_node& par, const segment_tree_node& a,
-             const segment_tree_node& b) {
-    bool take_a = (a.min_value <= b.min_value);
-    par.min_value = take_a ? a.min_value : b.min_value;
-    par.min_pos = take_a ? a.min_pos : b.min_pos;
+  template <typename value_ptr>
+  void build(int v, int tl, int tr, const value_ptr& arr) {
+    if (tl == tr) {
+      tree[v] = {arr[tl], arr[tl], tl};
+    } else {
+      int tm = (tl + tr) >> 1;
+      build(v << 1, tl, tm, arr);
+      build((v << 1) + 1, tm + 1, tr, arr);
+      update_node(v);
+    }
+  }
+
+  void update_node(int par) {
+    int left = par << 1;
+    auto take = (tree[left].min_value <= tree[left + 1].min_value)
+                    ? tree[left]
+                    : tree[left + 1];
+    tree[par].min_value = take.min_value;
+    tree[par].min_pos = take.min_pos;
   }
 
   void propagate(int v) {
@@ -79,16 +99,15 @@ struct segment_tree {
   }
 
   void update_range(int v, int tl, int tr, int l, int r, value_type addend) {
-    if (l > r) return;
-    if (l == tl && r == tr) {
+    if (l <= tl && tr <= r) {
       apply(v, addend);
       return;
     }
     propagate(v);
     int tm = (tl + tr) >> 1;
-    update_range(v << 1, tl, tm, l, std::min(r, tm), addend);
-    update_range((v << 1) + 1, tm + 1, tr, std::max(l, tm + 1), r, addend);
-    merge(tree[v], tree[v << 1], tree[(v << 1) + 1]);
+    if (l <= tm) update_range(v << 1, tl, tm, l, r, addend);
+    if (tm < r) update_range((v << 1) + 1, tm + 1, tr, l, r, addend);
+    update_node(v);
   }
 
   int query_val(int v, int tl, int tr, int pos) {
