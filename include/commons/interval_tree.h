@@ -38,6 +38,13 @@ struct interval_tree {
  public:
   interval_tree(ptr_t ptr) : mem_alloc_ptr(ptr), root(nullptr) {}
 
+  interval_tree(ptr_t ptr, std::vector<interval>&& v) : mem_alloc_ptr(ptr) {
+    std::sort(v.begin(), v.end(), [](const interval& a, const interval& b) {
+      return a.start < b.start;
+    });
+    root = build(0, v.size() - 1, v);
+  }
+
   // Newly inserted interval must have unique `start` and `end`
   void insert(interval i) { root = insert(root, i); }
 
@@ -57,6 +64,18 @@ struct interval_tree {
  private:
   interval_tree_node* root;
   ptr_t mem_alloc_ptr;
+
+  interval_tree_node* build(int l, int r, std::vector<interval>& v) {
+    int mid = (l + r) >> 1;
+    interval_tree_node* node =
+        new (mem_alloc_ptr->alloc()) interval_tree_node(v[mid]);
+    if (l < mid) node->left = build(l, mid - 1, v);
+    if (mid < r) node->right = build(mid + 1, r, v);
+    node->height = std::max(height(node->left), height(node->right)) + 1;
+    node->maxEnd = std::max(node->intvl.end,
+                            std::max(maxEnd(node->left), maxEnd(node->right)));
+    return node;
+  }
 
   int height(interval_tree_node* n) { return n ? n->height : 0; }
 

@@ -101,7 +101,8 @@ bool is_linearizable(history_t<value_type>& hist, const value_type& emptyVal) {
     return false;
 
   events_t<value_type> events{get_events(hist)};
-  if (!tune_events<value_type, add_methods, remove_methods>(events, emptyVal) ||
+  if (!tune_events<value_type, add_methods, remove_methods>(events, emptyVal,
+                                                            hist.back().id) ||
       !verify_empty<value_type, add_methods, remove_methods>(events, emptyVal))
     return false;
 
@@ -150,7 +151,8 @@ bool is_linearizable_x(history_t<value_type>& hist,
     return false;
 
   events_t<value_type> events{get_events(hist)};
-  if (!tune_events<value_type, add_methods, remove_methods>(events, emptyVal) ||
+  if (!tune_events_x<value_type, add_methods>(events, emptyVal,
+                                              hist.back().id) ||
       !verify_empty<value_type, add_methods, remove_methods>(events, emptyVal))
     return false;
 
