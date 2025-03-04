@@ -28,7 +28,7 @@ struct interval_tree_node {
 
 template <typename T>
 concept memory_allocator_ptr =
-    std::is_same_v<std::remove_cvref_t<decltype(*std::declval<T>())>,
+    std::is_same_v<typename std::pointer_traits<std::decay_t<T>>::element_type,
                    memory_allocator<interval_tree_node>>;
 
 // interval tree efficient O(log n) insert/delete of intervals and `O(m log n)`

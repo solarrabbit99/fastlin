@@ -75,7 +75,7 @@ struct stack_perm_segtree {
     }
 
     auto [layers, pos] = segTree->query_min();
-    segTree->update_range(pos, pos, {n << 2, {}});
+    segTree->update_point(pos, {n << 2, {}});
     if (layers.first == 0) return {pos, std::nullopt};
     if (layers.first == 1) {
       value_type& val = layers.second;
@@ -162,14 +162,17 @@ bool is_linearizable_x(history_t<value_type>& hist,
 
   auto mem_alloc =
       std::make_shared<memory_allocator<interval_tree_node>>(hist.size());
-  interval_tree ops{mem_alloc};
   std::vector<value_type> startTimeToVal(maxTime + 1);
   stack_perm_segtree<value_type> sst{hist, static_cast<size_t>(maxTime)};
 
+  std::vector<interval> intervals;
+  intervals.reserve(hist.size());
   for (const auto& o : hist) {
-    ops.insert({static_cast<int>(o.startTime), static_cast<int>(o.endTime)});
+    intervals.emplace_back(static_cast<int>(o.startTime),
+                           static_cast<int>(o.endTime));
     startTimeToVal[o.startTime] = o.value;
   }
+  interval_tree ops{mem_alloc, std::move(intervals)};
 
   std::unordered_set<value_type> pending;
   while (!ops.empty()) {

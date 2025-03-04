@@ -38,6 +38,10 @@ struct segment_tree {
     update_range(1, 0, size - 1, l, r, addend);
   }
 
+  void update_point(int pnt, value_type addend) {
+    update_point(1, 0, size - 1, pnt, addend);
+  }
+
   std::pair<value_type, int> query_min() {
     return {tree[1].min_value, tree[1].min_pos};
   }
@@ -107,6 +111,20 @@ struct segment_tree {
     int tm = (tl + tr) >> 1;
     if (l <= tm) update_range(v << 1, tl, tm, l, r, addend);
     if (tm < r) update_range((v << 1) + 1, tm + 1, tr, l, r, addend);
+    update_node(v);
+  }
+
+  void update_point(int v, int tl, int tr, int p, value_type addend) {
+    if (tl == tr) {
+      apply(v, addend);
+      return;
+    }
+    propagate(v);
+    int tm = (tl + tr) >> 1;
+    if (p <= tm)
+      update_point(v << 1, tl, tm, p, addend);
+    else
+      update_point((v << 1) + 1, tm + 1, tr, p, addend);
     update_node(v);
   }
 
