@@ -15,13 +15,21 @@ struct default_segment_tree_zero {
 };
 
 template <typename value_type>
+struct default_segment_tree_point_remover {
+  inline void operator()(value_type& v) {
+    v = std::numeric_limits<value_type>::max();
+  }
+};
+
+template <typename value_type>
 struct default_segment_tree_updater {
   inline void operator()(value_type& a, const value_type& b) { a += b; }
 };
 
 template <typename value_type,
           typename zero_allocator = default_segment_tree_zero<value_type>,
-          typename updater = default_segment_tree_updater<value_type>>
+          typename updater = default_segment_tree_updater<value_type>,
+          typename remover = default_segment_tree_point_remover<value_type>>
 struct segment_tree {
  public:
   segment_tree(const size_t& size) : tree(size << 2), size(size) {
@@ -38,9 +46,7 @@ struct segment_tree {
     update_range(1, 0, size - 1, l, r, addend);
   }
 
-  void update_point(int pnt, value_type addend) {
-    update_point(1, 0, size - 1, pnt, addend);
-  }
+  void remove_point(int pnt) { remove_point(1, 0, size - 1, pnt); }
 
   std::pair<value_type, int> query_min() {
     return {tree[1].min_value, tree[1].min_pos};
@@ -49,8 +55,6 @@ struct segment_tree {
   std::pair<value_type, int> query_min_range(int l, int r) {
     return query_min_range(1, 0, size - 1, l, r);
   }
-
-  int query_val(int pos) { return query_val(1, 0, size - 1, pos); }
 
  private:
   struct segment_tree_node {
@@ -102,6 +106,8 @@ struct segment_tree {
     updater()(tree[v].weight, addend);
   }
 
+  void remove(int v) { remover()(tree[v].min_value); }
+
   void update_range(int v, int tl, int tr, int l, int r, value_type addend) {
     if (l <= tl && tr <= r) {
       apply(v, addend);
@@ -114,26 +120,18 @@ struct segment_tree {
     update_node(v);
   }
 
-  void update_point(int v, int tl, int tr, int p, value_type addend) {
+  void remove_point(int v, int tl, int tr, int p) {
     if (tl == tr) {
-      apply(v, addend);
+      remove(v);
       return;
     }
     propagate(v);
     int tm = (tl + tr) >> 1;
     if (p <= tm)
-      update_point(v << 1, tl, tm, p, addend);
+      remove_point(v << 1, tl, tm, p);
     else
-      update_point((v << 1) + 1, tm + 1, tr, p, addend);
+      remove_point((v << 1) + 1, tm + 1, tr, p);
     update_node(v);
-  }
-
-  int query_val(int v, int tl, int tr, int pos) {
-    if (tl == tr) return tree[v].weight;
-    int tm = (tl + tr) >> 1;
-    return ((pos <= tm) ? query_val(v << 1, tl, tm, pos)
-                        : query_val((v << 1) + 1, tm + 1, tr, pos)) +
-           tree[v].weight;
   }
 
   std::pair<value_type, int> query_min_range(int v, int tl, int tr, int l,

@@ -37,8 +37,15 @@ struct stack_perm_segtree {
     }
   };
 
+  struct stack_segment_tree_point_remover {
+    inline void operator()(node_value_t& v) {
+      v.first = std::numeric_limits<int>::max();
+    }
+  };
+
   typedef segment_tree<node_value_t, stack_segment_tree_node_zero,
-                       stack_segment_tree_node_updater>
+                       stack_segment_tree_node_updater,
+                       stack_segment_tree_point_remover>
       segtree_t;
 
   stack_perm_segtree(const history_t<value_type>& hist, size_t n) : n{n} {
@@ -75,7 +82,7 @@ struct stack_perm_segtree {
     }
 
     auto [layers, pos] = segTree->query_min();
-    segTree->update_point(pos, {n << 2, {}});
+    segTree->remove_point(pos);
     if (layers.first == 0) return {pos, std::nullopt};
     if (layers.first == 1) {
       value_type& val = layers.second;
