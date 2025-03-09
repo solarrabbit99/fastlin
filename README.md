@@ -8,6 +8,7 @@ Histories are text files that provide a **data type** as header and **operations
 
 **Data types** are prefixed with `#` followed by any of the supported tags:
 
+- `set`
 - `stack`
 - `queue`
 - `priorityqueue`
@@ -57,6 +58,7 @@ _linearizability_ prints `1` when input history is linearizable, `0` otherwise.
 
 | Data Type      | Time Complexity |
 | -------------- | --------------- |
+| Set            | $O(n)$          |
 | Stack          | $O(n\log{n})$   |
 | Queue          | $O(n\log{n})$   |
 | Priority Queue | $O(n\log{n})$   |

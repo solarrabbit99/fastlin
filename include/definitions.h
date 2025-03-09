@@ -13,21 +13,22 @@ typedef unsigned int id_type;
 
 #define MIN_TIME std::numeric_limits<time_type>::lowest()
 
-#define FASTLIN_METHOD_EXPAND(MACRO) \
-  MACRO(PUSH, "push")                \
-  MACRO(POP, "pop")                  \
-  MACRO(PEEK, "peek")                \
-  MACRO(ENQ, "enq")                  \
-  MACRO(DEQ, "deq")                  \
-  MACRO(PUSH_FRONT, "push_front")    \
-  MACRO(POP_FRONT, "pop_front")      \
-  MACRO(PEEK_FRONT, "peek_front")    \
-  MACRO(PUSH_BACK, "push_back")      \
-  MACRO(POP_BACK, "pop_back")        \
-  MACRO(PEEK_BACK, "peek_back")      \
-  MACRO(INSERT, "insert")            \
-  MACRO(POLL, "poll")                \
-  MACRO(CONTAINS, "contains")        \
+#define FASTLIN_METHOD_EXPAND(MACRO)      \
+  MACRO(PUSH, "push")                     \
+  MACRO(POP, "pop")                       \
+  MACRO(PEEK, "peek")                     \
+  MACRO(ENQ, "enq")                       \
+  MACRO(DEQ, "deq")                       \
+  MACRO(PUSH_FRONT, "push_front")         \
+  MACRO(POP_FRONT, "pop_front")           \
+  MACRO(PEEK_FRONT, "peek_front")         \
+  MACRO(PUSH_BACK, "push_back")           \
+  MACRO(POP_BACK, "pop_back")             \
+  MACRO(PEEK_BACK, "peek_back")           \
+  MACRO(INSERT, "insert")                 \
+  MACRO(POLL, "poll")                     \
+  MACRO(CONTAINS_TRUE, "contains_true")   \
+  MACRO(CONTAINS_FALSE, "contains_false") \
   MACRO(REMOVE, "remove")
 
 enum Method {

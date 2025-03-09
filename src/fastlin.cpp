@@ -7,6 +7,7 @@
 
 #include "algo/priorityqueue_lin.h"
 #include "algo/queue_lin.h"
+#include "algo/set_lin.h"
 #include "algo/stack_lin.h"
 #include "history_reader.h"
 
@@ -22,6 +23,7 @@ auto get_monitor(const std::string& type, bool exclude_peeks) {
   if (type == #TYPE)                                           \
     return exclude_peeks ? TYPE::is_linearizable_x<value_type> \
                          : TYPE::is_linearizable<value_type>;
+  SUPPORT_DS(set);
   SUPPORT_DS(stack);
   SUPPORT_DS(queue);
   SUPPORT_DS(priorityqueue);
