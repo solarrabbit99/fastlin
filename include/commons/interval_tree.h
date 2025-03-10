@@ -42,7 +42,7 @@ struct interval_tree {
     std::sort(v.begin(), v.end(), [](const interval& a, const interval& b) {
       return a.start < b.start;
     });
-    root = build(0, v.size() - 1, v);
+    root = v.empty() ? nullptr : build(0, v.size() - 1, v);
   }
 
   // Newly inserted interval must have unique `start` and `end`
@@ -56,12 +56,6 @@ struct interval_tree {
   std::vector<interval> query(int point) {
     std::vector<interval> result;
     query(root, point, result);
-    return result;
-  }
-
-  std::vector<interval> query_remove(int point) {
-    std::vector<interval> result;
-    query_remove(root, point, result);
     return result;
   }
 
@@ -151,7 +145,7 @@ struct interval_tree {
       node->right = insert(node->right, i);
 
     node->height = std::max(height(node->left), height(node->right)) + 1;
-    node->maxEnd = std::max(node->intvl.end, node->maxEnd);
+    node->maxEnd = std::max(i.end, node->maxEnd);
 
     return autoBalance(node);
   }
@@ -168,16 +162,14 @@ struct interval_tree {
       node->left = remove(node->left, i);
     } else if (i.start > node->intvl.start) {
       node->right = remove(node->right, i);
+    } else if (!node->left || !node->right) {
+      interval_tree_node* temp = node->left ? node->left : node->right;
+      mem_alloc_ptr->free(node);
+      node = temp;
     } else {
-      if (!node->left || !node->right) {
-        interval_tree_node* temp = node->left ? node->left : node->right;
-        mem_alloc_ptr->free(node);
-        node = temp;
-      } else {
-        interval_tree_node* temp = minValueNode(node->right);
-        node->intvl = temp->intvl;
-        node->right = remove(node->right, temp->intvl);
-      }
+      interval_tree_node* temp = minValueNode(node->right);
+      node->intvl = temp->intvl;
+      node->right = remove(node->right, temp->intvl);
     }
 
     if (!node) return node;
@@ -199,110 +191,9 @@ struct interval_tree {
     if (node->left && node->left->maxEnd > point)
       query(node->left, point, result);
 
-    if (node->right && node->intvl.start <= point)
+    if (node->right && node->intvl.start < point)
       query(node->right, point, result);
   }
-
-  interval_tree_node* query_remove(interval_tree_node* node, int point,
-                                   std::vector<interval>& result) {
-    if (!node) return node;
-
-    if (node->left && node->left->maxEnd > point)
-      node->left = query_remove(node->left, point, result);
-
-    if (node->right && node->intvl.start <= point)
-      node->right = query_remove(node->right, point, result);
-
-    if (node->intvl.start <= point && point < node->intvl.end) {
-      result.push_back(node->intvl);
-      if (!node->left || !node->right) {
-        interval_tree_node* temp = node->left ? node->left : node->right;
-        mem_alloc_ptr->free(node);
-        node = temp;
-      } else {
-        interval_tree_node* temp = minValueNode(node->right);
-        node->intvl = temp->intvl;
-        node->right = remove(node->right, temp->intvl);
-      }
-    }
-
-    if (!node) return node;
-
-    node->height = std::max(height(node->left), height(node->right)) + 1;
-    node->maxEnd = std::max(node->intvl.end,
-                            std::max(maxEnd(node->left), maxEnd(node->right)));
-
-    return autoBalance(node);
-  }
-};
-
-struct interval_tree_node_statistics {
-  int left;
-  int right;
-  int maxEnd;
-};
-
-struct static_interval_tree {
-  static_interval_tree(std::vector<interval>&& v)
-      : v_(v), stats(v.size()), size(v.size()) {
-    std::sort(v_.begin(), v_.end(), [](const interval& a, const interval& b) {
-      return a.start < b.start;
-    });
-    root = size ? build(0, size - 1) : -1;
-  }
-
-  std::vector<interval> remove(int point) {
-    std::vector<interval> result;
-    if (root != -1) {
-      remove(root, point, result);
-      if ((size -= result.size()) < root) rebuild();
-    }
-    return result;
-  }
-
-  bool empty() { return size == 0; }
-
- private:
-  int maxEnd(int v) { return (v == -1) ? INT32_MIN : stats[v].maxEnd; }
-
-  int build(int l, int r) {
-    int mid = (l + r) >> 1;
-    stats[mid].left = (l < mid) ? build(l, mid - 1) : -1;
-    stats[mid].right = (mid < r) ? build(mid + 1, r) : -1;
-    stats[mid].maxEnd =
-        std::max(v_[mid].end,
-                 std::max(maxEnd(stats[mid].left), maxEnd(stats[mid].right)));
-    return mid;
-  }
-
-  void remove(int node, int point, std::vector<interval>& result) {
-    if (stats[node].left != -1 && stats[stats[node].left].maxEnd > point)
-      remove(stats[node].left, point, result);
-
-    if (stats[node].right != -1 && v_[node].start <= point)
-      remove(stats[node].right, point, result);
-
-    if (v_[node].start <= point && point < v_[node].end) {
-      result.push_back(v_[node]);
-      v_[node].end = INT32_MIN;
-      stats[node].maxEnd =
-          std::max(maxEnd(stats[node].left), maxEnd(stats[node].right));
-    }
-  }
-
-  void rebuild() {
-    int pos = 0;
-    for (const interval& i : v_) {
-      if (i.start < i.end) v_[pos] = i;
-      if (++pos == size) break;
-    }
-    root = size ? build(0, size - 1) : -1;
-  }
-
-  std::vector<interval> v_;
-  std::vector<interval_tree_node_statistics> stats;
-  int size;
-  int root;
 };
 
 }  // namespace fastlin

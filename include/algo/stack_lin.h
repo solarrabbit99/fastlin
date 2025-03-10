@@ -39,6 +39,7 @@ struct stack_perm_segtree {
 
   struct stack_segment_tree_point_remover {
     inline void operator()(node_value_t& v) {
+      // we are only removing values anyways
       v.first = std::numeric_limits<int>::max();
     }
   };

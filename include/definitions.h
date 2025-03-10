@@ -45,6 +45,18 @@ inline Method stomethod(const std::string& str) {
   throw std::invalid_argument("Unknown method: " + str);
 }
 
+inline std::string methodtos(const Method& method) {
+#define FASTLIN_METHODSTR_TRANSLATE(ENUM, STR) \
+  case ENUM:                                   \
+    return STR;
+  switch (method) {
+    FASTLIN_METHOD_EXPAND(FASTLIN_METHODSTR_TRANSLATE)
+    default:
+      throw std::invalid_argument("Unknown method: " + std::to_string(method));
+  }
+#undef FASTLIN_METHODSTR_TRANSLATE
+}
+
 template <Method first_method, Method... method>
 struct method_group {
   // check if the argument is one of the variadic values

@@ -14,8 +14,10 @@
 using namespace fastlin;
 
 typedef std::chrono::high_resolution_clock hr_clock;
-typedef int default_value_type;
-const int defaultEmptyVal = -1;
+// int causes overflow for million operations (e.g. stack algo sums million
+// unique values)
+typedef long long default_value_type;
+const long long defaultEmptyVal = -1;
 
 template <typename value_type>
 auto get_monitor(const std::string& type, bool exclude_peeks) {
