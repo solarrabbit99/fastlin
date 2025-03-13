@@ -13,7 +13,7 @@
 
 using namespace fastlin;
 
-typedef std::chrono::high_resolution_clock hr_clock;
+typedef std::chrono::steady_clock hr_clock;
 // int causes overflow for million operations (e.g. stack algo sums million
 // unique values)
 typedef long long default_value_type;
