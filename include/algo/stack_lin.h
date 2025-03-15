@@ -104,6 +104,8 @@ struct stack_perm_segtree {
 
 template <typename value_type>
 bool is_linearizable(history_t<value_type>& hist, const value_type& emptyVal) {
+  if (hist.empty()) return true;
+
   if (!extend_dist_history<value_type, add_methods, remove_methods>(hist,
                                                                     emptyVal))
     return false;
@@ -154,6 +156,8 @@ bool is_linearizable(history_t<value_type>& hist, const value_type& emptyVal) {
 template <typename value_type>
 bool is_linearizable_x(history_t<value_type>& hist,
                        const value_type& emptyVal) {
+  if (hist.empty()) return true;
+
   if (!extend_dist_history<value_type, add_methods, remove_methods>(hist,
                                                                     emptyVal))
     return false;
