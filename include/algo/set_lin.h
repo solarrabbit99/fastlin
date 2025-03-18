@@ -22,9 +22,8 @@ bool is_linearizable(history_t<value_type>& hist, const value_type& emptyVal) {
   std::unordered_map<value_type, std::pair<time_type, time_type>> minResMaxInv;
   for (const auto& o : hist)
     if (o.method != Method::CONTAINS_FALSE) {
-      constexpr time_type maxTime = MAX_TIME;
       auto& elem =
-          minResMaxInv.try_emplace(o.value, maxTime, maxTime).first->second;
+          minResMaxInv.try_emplace(o.value, MAX_TIME, MIN_TIME).first->second;
       elem.first = std::min(elem.first, o.endTime);
       elem.second = std::max(elem.second, o.startTime);
     }
