@@ -1,9 +1,9 @@
 #pragma once
 
+#include <queue>
 #include <unordered_map>
 #include <unordered_set>
 
-#include "commons/queue_set.h"
 #include "definitions.h"
 
 namespace fastlin {
