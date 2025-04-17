@@ -1,6 +1,8 @@
 # Fastlin
 
-The fastest and most lightweight linearizability tester you will ever find. It is so fast that it is finally practical to test millions of operations, which has never been possible before. Only constraint is values added to the data types must be distinct.
+The fastest and most lightweight linearizability tester you will ever find.
+
+See [paper on arXiv](https://doi.org/10.48550/arXiv.2410.04581) for detailed description and proof of correctness of the underlying algorithms.
 
 ## Histories
 
@@ -14,6 +16,8 @@ Histories are text files that provide a **data type** as header and **operations
 - `priorityqueue`
 
 **Operations** are denoted by method, value, start time, and end time in that order. Refer to examples in `testcases` directory for supported methods for a given data type.
+
+The input history must be _unambiguous_.
 
 ### Example
 
