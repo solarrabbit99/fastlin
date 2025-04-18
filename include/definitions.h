@@ -8,7 +8,6 @@
 namespace fastlin {
 
 typedef unsigned long long time_type;
-typedef unsigned int proc_type;
 typedef unsigned int id_type;
 
 #define MIN_TIME std::numeric_limits<time_type>::lowest()
